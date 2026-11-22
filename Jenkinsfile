@@ -25,7 +25,7 @@ pipeline {
         EC2_HOST = '40.192.69.205'
         EC2_USER = 'ubuntu'
 
-        APP_DIR = '/var/www/react-cicd-bg'
+        APP_DIR = '/var/www/node-service-dev'
         SSH_CREDENTIALS = 'ec2-ssh-key'
 
         RELEASE_ID = "release-${BUILD_NUMBER}"
@@ -122,7 +122,7 @@ pipeline {
                         cd "$RELEASE_DIR"
                         npm ci --omit=dev
 
-                        mkdir -p /var/log/react-cicd-bg
+                        mkdir -p /var/log/node-service-dev
 
                         chmod -R u=rwX,g=rX,o= "$RELEASE_DIR"
 
