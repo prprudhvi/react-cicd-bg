@@ -12,7 +12,7 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 4001,
-        SERVICE_PUBLIC_IP: '18.60.99.194',
+        SERVICE_PUBLIC_IP: '40.192.69.205',
       },
       time: true,
       error_file: '/var/log/react-cicd-bg/error.log',

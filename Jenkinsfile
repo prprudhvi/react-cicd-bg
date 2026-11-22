@@ -25,7 +25,7 @@ pipeline {
         EC2_HOST = '40.192.69.205'
         EC2_USER = 'ubuntu'
 
-        APP_DIR = '/var/www/node-service-dev'
+        APP_DIR = '/var/www/react-cicd-bg'
         SSH_CREDENTIALS = 'ec2-ssh-key'
 
         RELEASE_ID = "release-${BUILD_NUMBER}"
