@@ -2,7 +2,7 @@
 def runSh(String script) {
     if (isUnix()) {
         sh script
-    } else {
+    } else { 
         writeFile file: '.jenkins-sh.sh', text: script.replace('\r\n', '\n').replace('\r', '\n')
         bat '"C:\\Program Files\\Git\\bin\\bash.exe" -lxe .jenkins-sh.sh'
     }
@@ -22,10 +22,10 @@ pipeline {
     }
 
     environment {
-        EC2_HOST = '18.60.99.194'
+        EC2_HOST = '40.192.69.205'
         EC2_USER = 'ubuntu'
 
-        APP_DIR = '/var/www/react-cicd-bg'
+        APP_DIR = '/var/www/node-service-dev'
         SSH_CREDENTIALS = 'ec2-ssh-key'
 
         RELEASE_ID = "release-${BUILD_NUMBER}"
@@ -80,6 +80,12 @@ pipeline {
         }
 
         stage('Deploy to EC2') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'main'
+                }
+            }
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     script {
@@ -122,7 +128,7 @@ pipeline {
                         cd "$RELEASE_DIR"
                         npm ci --omit=dev
 
-                        mkdir -p /var/log/react-cicd-bg
+                        mkdir -p /var/log/node-service-dev
 
                         chmod -R u=rwX,g=rX,o= "$RELEASE_DIR"
 
