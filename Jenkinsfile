@@ -80,6 +80,12 @@ pipeline {
         }
 
         stage('Deploy to EC2') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'main'
+                }
+            }
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     script {
