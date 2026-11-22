@@ -125,6 +125,31 @@ pipeline {
 
                         PREVIOUS=$(readlink "$CURRENT" || true)
 
+                        # Non-interactive ssh skips .bashrc, where nvm/fnm/volta
+                        # normally put node, npm, and pm2 on PATH.
+                        export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.volta/bin:/usr/local/bin:$PATH"
+
+                        if [ -s "$HOME/.nvm/nvm.sh" ]; then
+                          export NVM_DIR="$HOME/.nvm"
+                          set +u
+                          # shellcheck disable=SC1090
+                          . "$NVM_DIR/nvm.sh"
+                          set -u
+                        fi
+
+                        if [ -x "$HOME/.local/share/fnm/fnm" ]; then
+                          set +u
+                          eval "$("$HOME/.local/share/fnm/fnm" env --shell bash)"
+                          set -u
+                        fi
+
+                        if ! command -v npm >/dev/null 2>&1; then
+                          echo "npm not found for non-interactive SSH as $(id -un)." >&2
+                          echo "PATH=$PATH" >&2
+                          echo "Install Node.js on the EC2 host for this user (nvm is fine)." >&2
+                          exit 127
+                        fi
+
                         cd "$RELEASE_DIR"
                         npm ci --omit=dev
 
@@ -136,6 +161,12 @@ pipeline {
                         ln -s "releases/$RELEASE_ID" "$TEMP_LINK"
 
                         mv -Tf "$TEMP_LINK" "$CURRENT"
+
+                        if ! command -v pm2 >/dev/null 2>&1; then
+                          echo "pm2 not found for non-interactive SSH as $(id -un)." >&2
+                          echo "Install it on the EC2 host: npm install -g pm2" >&2
+                          exit 127
+                        fi
 
                         if ! pm2 startOrReload \
                             "$CURRENT/ecosystem.config.js" \
