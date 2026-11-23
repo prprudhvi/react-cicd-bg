@@ -157,7 +157,7 @@ pipeline {
                         esac
 
                         echo "Building $IMAGE:$RELEASE_ID"
-                        docker build -t "$IMAGE:$RELEASE_ID" "$RELEASE_DIR"
+                        DOCKER_BUILDKIT=1 docker build --progress=plain -t "$IMAGE:$RELEASE_ID" "$RELEASE_DIR"
 
                         start_container() {
                           tag="$1"
