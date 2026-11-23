@@ -2,7 +2,7 @@
 def runSh(String script) {
     if (isUnix()) {
         sh script
-    } else {
+    } else { 
         writeFile file: '.jenkins-sh.sh', text: script.replace('\r\n', '\n').replace('\r', '\n')
         bat '"C:\\Program Files\\Git\\bin\\bash.exe" -lxe .jenkins-sh.sh'
     }
@@ -22,11 +22,13 @@ pipeline {
     }
 
     environment {
-        EC2_HOST = '18.60.99.194'
+        EC2_HOST = '40.192.69.205'
         EC2_USER = 'ubuntu'
 
-        APP_DIR = '/var/www/react-cicd-bg'
+        APP_DIR = '/var/www/node-service-dev'
         SSH_CREDENTIALS = 'ec2-ssh-key'
+        SERVICE_PUBLIC_IP = '40.192.69.205'
+        APP_PORT = '4001'
 
         RELEASE_ID = "release-${BUILD_NUMBER}"
     }
@@ -80,6 +82,12 @@ pipeline {
         }
 
         stage('Deploy to EC2') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'main'
+                }
+            }
             steps {
                 sshagent(credentials: [SSH_CREDENTIALS]) {
                     script {
@@ -103,103 +111,113 @@ pipeline {
                           . | ssh $SSH_OPTS "$EC2_USER@$EC2_HOST" \
                           "tar -xzf - -C '$APP_DIR/releases/$RELEASE_ID'"
 
-                        echo "Installing production dependencies"
+                        echo "Building and starting the Docker container"
 
                         ssh $SSH_OPTS "$EC2_USER@$EC2_HOST" \
-                          bash -s -- "$APP_DIR" "$RELEASE_ID" <<'REMOTE'
+                          bash -s -- "$APP_DIR" "$RELEASE_ID" "$SERVICE_PUBLIC_IP" "$APP_PORT" <<'REMOTE'
 
                         set -eu
 
                         APP_DIR="$1"
                         RELEASE_ID="$2"
+                        PUBLIC_IP="$3"
+                        PORT="$4"
 
+                        IMAGE="react-cicd-bg"
+                        CONTAINER="react-cicd-bg"
                         RELEASE_DIR="$APP_DIR/releases/$RELEASE_ID"
                         CURRENT="$APP_DIR/current"
                         TEMP_LINK="$APP_DIR/current.new"
 
-                        PREVIOUS=$(readlink "$CURRENT" || true)
+                        if ! command -v docker >/dev/null 2>&1; then
+                          echo "docker not found for $(id -un)." >&2
+                          echo "Install Docker and add this user to the docker group." >&2
+                          exit 127
+                        fi
 
-                        cd "$RELEASE_DIR"
-                        npm ci --omit=dev
+                        if ! docker info >/dev/null 2>&1; then
+                          echo "docker is installed but $(id -un) cannot use the Docker socket." >&2
+                          echo "Run: sudo usermod -aG docker $(id -un)" >&2
+                          exit 1
+                        fi
 
-                        mkdir -p /var/log/react-cicd-bg
+                        if ! command -v curl >/dev/null 2>&1; then
+                          echo "curl is required on the host for the health check." >&2
+                          exit 127
+                        fi
 
-                        chmod -R u=rwX,g=rX,o= "$RELEASE_DIR"
+                        if command -v pm2 >/dev/null 2>&1; then
+                          pm2 delete "$CONTAINER" >/dev/null 2>&1 || true
+                          pm2 save >/dev/null 2>&1 || true
+                        fi
+
+                        PREVIOUS_TAG="$(docker inspect -f '{{index .Config.Labels "release"}}' "$CONTAINER" 2>/dev/null || true)"
+                        case "$PREVIOUS_TAG" in
+                          ""|"<no value>") PREVIOUS_TAG="" ;;
+                        esac
+
+                        echo "Building $IMAGE:$RELEASE_ID"
+                        docker build -t "$IMAGE:$RELEASE_ID" "$RELEASE_DIR"
+
+                        start_container() {
+                          tag="$1"
+                          docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+                          docker run -d \
+                            --name "$CONTAINER" \
+                            --restart unless-stopped \
+                            -p "${PORT}:${PORT}" \
+                            -e NODE_ENV=production \
+                            -e PORT="$PORT" \
+                            -e SERVICE_PUBLIC_IP="$PUBLIC_IP" \
+                            --label "release=$tag" \
+                            "$IMAGE:$tag"
+                        }
+
+                        wait_healthy() {
+                          i=1
+                          while [ "$i" -le 30 ]; do
+                            if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+                              return 0
+                            fi
+                            i=$((i + 1))
+                            sleep 2
+                          done
+                          return 1
+                        }
+
+                        start_container "$RELEASE_ID"
+
+                        if ! wait_healthy; then
+                          echo "Health check failed. Rolling back." >&2
+                          docker logs "$CONTAINER" >&2 || true
+
+                          if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$RELEASE_ID" ]; then
+                            start_container "$PREVIOUS_TAG"
+                          else
+                            docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+                          fi
+
+                          exit 1
+                        fi
 
                         rm -f "$TEMP_LINK"
                         ln -s "releases/$RELEASE_ID" "$TEMP_LINK"
-
                         mv -Tf "$TEMP_LINK" "$CURRENT"
 
-                        if ! pm2 startOrReload \
-                            "$CURRENT/ecosystem.config.js" \
-                            --env production \
-                            --update-env; then
-
-                            echo "PM2 reload failed"
-
-                            if [ -n "$PREVIOUS" ]; then
-                                ln -s "$PREVIOUS" "$TEMP_LINK"
-                                mv -Tf "$TEMP_LINK" "$CURRENT"
-
-                                pm2 startOrReload \
-                                  "$CURRENT/ecosystem.config.js" \
-                                  --env production \
-                                  --update-env
-                            else
-                                rm -f "$CURRENT"
-                                pm2 delete react-cicd-bg || true
-                            fi
-
-                            exit 1
-                        fi
-
-                        HEALTHY=false
-
-                        for i in $(seq 1 30); do
-
-                            if curl -fsS \
-                              http://127.0.0.1:4001/health \
-                              >/dev/null; then
-
-                                HEALTHY=true
-                                break
-                            fi
-
-                            sleep 2
-                        done
-
-                        if [ "$HEALTHY" != "true" ]; then
-
-                            echo "Health check failed. Rolling back."
-
-                            if [ -n "$PREVIOUS" ]; then
-
-                                ln -s "$PREVIOUS" "$TEMP_LINK"
-                                mv -Tf "$TEMP_LINK" "$CURRENT"
-
-                                pm2 startOrReload \
-                                  "$CURRENT/ecosystem.config.js" \
-                                  --env production \
-                                  --update-env
-
-                            else
-                                rm -f "$CURRENT"
-                                pm2 delete react-cicd-bg || true
-                            fi
-
-                            exit 1
-                        fi
-
-                        pm2 save
+                        docker images "$IMAGE" --format '{{.Tag}}' |
+                          grep -E '^release-' |
+                          tail -n +6 |
+                          while read -r old_tag; do
+                            docker rmi "$IMAGE:$old_tag" >/dev/null 2>&1 || true
+                          done
 
                         cd "$APP_DIR/releases"
 
                         ls -1dt release-* 2>/dev/null |
-                            tail -n +6 |
-                            while read -r old_release; do
-                                rm -rf -- "$old_release"
-                            done
+                          tail -n +6 |
+                          while read -r old_release; do
+                            rm -rf -- "$old_release"
+                          done
 
                         echo "Deployment successful"
 REMOTE
