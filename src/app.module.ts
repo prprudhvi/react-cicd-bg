@@ -5,7 +5,7 @@ import { RequestLoggerMiddleware } from './common/request-logger.middleware';
 import { HealthController } from './health/health.controller';
 import { InfoModule } from './info/info.module';
 import { MetricsController } from './monitoring/metrics.controller';
-import metricsMiddleware from './monitoring/metricsMiddleware';
+import { metricsMiddleware } from './monitoring/metricsMiddleware';
 
 @Module({
   imports: [
