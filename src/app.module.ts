@@ -13,6 +13,7 @@ import { metricsMiddleware } from './monitoring/metricsMiddleware';
       driver: ApolloDriver,
       autoSchemaFile: true,
       sortSchema: true,
+      playground: false,
       includeStacktraceInErrorResponses: process.env.NODE_ENV !== 'production',
     }),
     InfoModule,
