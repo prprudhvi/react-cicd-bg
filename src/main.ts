@@ -11,6 +11,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
   const logger = new Logger('Bootstrap');
   logger.log(`Health ready at http://localhost:${port}/health`);
+  logger.log(`Metrics ready at http://localhost:${port}/metrics`);
   logger.log(`GraphQL ready at http://localhost:${port}/graphql`);
 }
 

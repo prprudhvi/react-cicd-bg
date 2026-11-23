@@ -30,6 +30,12 @@ describe('API (e2e)', () => {
       .post('/graphql')
       .send({ query, operationName });
 
+  it('GET /metrics returns Prometheus text', async () => {
+    const response = await request(app.getHttpServer()).get('/metrics').expect(200);
+    expect(response.headers['content-type']).toContain('text/plain');
+    expect(response.text).toContain('react_cicd_bg_');
+  });
+
   it('GET /health returns ok and the service IP', async () => {
     const response = await request(app.getHttpServer()).get('/health').expect(200);
     expect(response.body.ok).toBe(true);

@@ -4,6 +4,8 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { RequestLoggerMiddleware } from './common/request-logger.middleware';
 import { HealthController } from './health/health.controller';
 import { InfoModule } from './info/info.module';
+import { MetricsController } from './monitoring/metrics.controller';
+import metricsMiddleware from './monitoring/metricsMiddleware';
 
 @Module({
   imports: [
@@ -15,10 +17,10 @@ import { InfoModule } from './info/info.module';
     }),
     InfoModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, MetricsController],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestLoggerMiddleware).forRoutes('{*splat}');
+    consumer.apply(metricsMiddleware, RequestLoggerMiddleware).forRoutes('{*splat}');
   }
 }
