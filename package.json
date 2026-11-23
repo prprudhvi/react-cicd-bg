@@ -46,6 +46,9 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
+  "overrides": {
+    "@apollo/server-plugin-landing-page-graphql-playground": "file:../../../overrides/apollo-playground"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.24",

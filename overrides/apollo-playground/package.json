@@ -1,0 +1,10 @@
+{
+  "name": "@apollo/server-plugin-landing-page-graphql-playground",
+  "version": "4.0.1",
+  "private": true,
+  "description": "Stand-in for the Apollo Server 4 Playground plugin. This service uses Apollo Server 5.",
+  "main": "index.js",
+  "peerDependencies": {
+    "@apollo/server": "^5.0.0"
+  }
+}
