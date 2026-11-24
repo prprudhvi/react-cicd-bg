@@ -149,9 +149,27 @@ pipeline {
                           exit 127
                         fi
 
+                        echo "Freeing disk space"
+                        df -h /
+
                         if command -v docker >/dev/null 2>&1; then
                           docker rm -f react-cicd-bg >/dev/null 2>&1 || true
+                          docker system prune -af >/dev/null 2>&1 || true
                         fi
+
+                        npm cache clean --force >/dev/null 2>&1 || true
+                        sudo -n apt-get clean >/dev/null 2>&1 || true
+                        sudo -n journalctl --vacuum-size=20M >/dev/null 2>&1 || true
+
+                        if [ -d "$APP_DIR/releases" ]; then
+                          ls -1dt "$APP_DIR"/releases/release-* 2>/dev/null |
+                            tail -n +3 |
+                            while read -r old_release; do
+                              rm -rf -- "$old_release"
+                            done
+                        fi
+
+                        df -h /
 
                         cd "$RELEASE_DIR"
                         npm ci --omit=dev
