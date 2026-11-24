@@ -1,12 +1,28 @@
-import { NextFunction, Request, Response } from 'express';
-import { requestDuration, requestsTotal } from './metrics';
 
-export function metricsMiddleware(req: Request, res: Response, next: NextFunction): void {
+import { Request, Response, NextFunction } from 'express';
+import {
+  requestsTotal,
+  requestDuration,
+} from './metrics';
+
+export function metricsMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const start = process.hrtime.bigint();
 
   res.on('finish', () => {
-    const duration = Number(process.hrtime.bigint() - start) / 1e9;
-    const route = req.route && typeof req.route.path === 'string' ? req.route.path : 'unknown';
+    if (req.path === '/metrics') return;
+
+    const duration =
+      Number(process.hrtime.bigint() - start) / 1e9;
+
+    const route =
+      req.route?.path
+        ? `${req.baseUrl}${req.route.path}`
+        : 'unmatched';
+
     const labels = {
       method: req.method,
       route,
