@@ -12,7 +12,7 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 4001,
-        SERVICE_PUBLIC_IP: '40.192.69.205',
+        SERVICE_PUBLIC_IP: '16.113.1.165',
       },
       time: true,
       error_file: '/var/log/node-service-dev/error.log',
