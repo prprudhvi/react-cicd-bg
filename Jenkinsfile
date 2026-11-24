@@ -94,7 +94,7 @@ pipeline {
                     runSh('''
                         set -eu
 
-                        SSH_OPTS="-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o GSSAPIAuthentication=no -o ConnectTimeout=20"
+                        SSH_OPTS="-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o GSSAPIAuthentication=no -o ConnectTimeout=60"
 
                         echo "Creating remote release"
 
@@ -221,6 +221,17 @@ pipeline {
                         fi
 
                         pm2 save
+
+                        if ! command -v nginx >/dev/null 2>&1; then
+                          echo "nginx is not installed on the EC2 host." >&2
+                          exit 1
+                        fi
+
+                        sudo -n cp "$CURRENT/deploy/nginx/node-service-dev.conf" /etc/nginx/sites-available/node-service-dev
+                        sudo -n ln -sfn /etc/nginx/sites-available/node-service-dev /etc/nginx/sites-enabled/node-service-dev
+                        sudo -n rm -f /etc/nginx/sites-enabled/default
+                        sudo -n nginx -t
+                        sudo -n systemctl reload nginx
 
                         cd "$APP_DIR/releases"
 
