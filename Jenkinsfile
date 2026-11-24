@@ -22,12 +22,12 @@ pipeline {
     }
 
     environment {
-        EC2_HOST = '16.113.1.165'
+        EC2_HOST = '18.61.62.93'
         EC2_USER = 'ubuntu'
 
         APP_DIR = '/var/www/node-service-dev'
         SSH_CREDENTIALS = 'ec2-ssh-key'
-        SERVICE_PUBLIC_IP = '16.113.1.165'
+        SERVICE_PUBLIC_IP = '18.61.62.93'
         APP_PORT = '4001'
 
         RELEASE_ID = "release-${BUILD_NUMBER}"
